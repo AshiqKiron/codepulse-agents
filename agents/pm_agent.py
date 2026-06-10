@@ -10,19 +10,16 @@ class PM_AGENT:
         )
 
     def create_roadmap(self, github_themes, social_themes):
-        prompt = f"""
-        You are the VP of Product for VS Code. 
-        Based on these technical issues and social sentiments, propose 3 strategic initiatives for the next quarter.
-        
-        Technical Pain Points (GitHub):
-        {github_themes}
-        
-        User Sentiment (Social):
-        {social_themes}
-        
-        Output Format:
-        1. Initiative Name: [Name]
-           - Problem Solved: [Specific pain point]
-           - Metric for Success: [e.g., Reduce issue count by 20%]
-        """
+        prompt = f"""You are VP of Product for VS Code. Based on these inputs, propose 3 strategic initiatives:
+
+Technical Pain Points (GitHub):
+{github_themes}
+
+User Sentiment (Social):
+{social_themes}
+
+Format:
+1. Initiative Name: [Name]
+   - Problem Solved: [Specific pain point]
+   - Metric for Success: [Measurable outcome]"""
         return self.llm.invoke(prompt)
