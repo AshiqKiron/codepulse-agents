@@ -12,6 +12,9 @@ class AnalystAgent:
 
     def summarize_pain_points(self, data_source, items):
         """Summarize top 5 items into key themes"""
+        if not items:
+            return "No data available for analysis."
+            
         text_items = "\n".join([f"- {item['title']}" for item in items])
         
         prompt = PromptTemplate.from_template(
