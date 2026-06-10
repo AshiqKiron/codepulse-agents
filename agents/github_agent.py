@@ -12,7 +12,7 @@ class GitHubAgent:
             "state": "open",
             "labels": label,
             "per_page": limit,
-            "sort": "comments", # Get most discussed issues
+            "sort": "comments",
             "direction": "desc"
         }
         response = requests.get(url, headers=self.headers, params=params)
