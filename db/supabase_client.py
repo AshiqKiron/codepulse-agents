@@ -1,4 +1,3 @@
-# db/supabase_client.py
 import os
 from supabase import create_client, Client
 from datetime import datetime, timedelta
@@ -6,11 +5,6 @@ from typing import Optional, List, Dict, Any
 
 
 class SupabaseClient:
-    """
-    Manages all interactions with the Supabase 'insights' table.
-    Designed for online deployment where credentials come from environment variables/secrets.
-    """
-
     def __init__(self):
         self.url: str = os.getenv("SUPABASE_URL")
         self.key: str = os.getenv("SUPABASE_KEY")
@@ -30,27 +24,14 @@ class SupabaseClient:
         sentiment: str,
         embedding: Optional[List[float]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Save a single insight to the database.
-
-        Args:
-            source: Data source (e.g., 'github', 'hackernews', 'reddit')
-            content: The text content of the issue/comment/post
-            sentiment: Analyzed sentiment ('Positive', 'Negative', 'Neutral')
-            embedding: Optional vector embedding for semantic search
-
-        Returns:
-            Inserted row data or None on failure
-        """
         try:
             data = {
                 "source": source,
-                "content": content[:5000],  # Truncate to avoid DB limits
+                "content": content[:5000],
                 "sentiment": sentiment,
                 "created_at": datetime.now().isoformat(),
             }
 
-            # Only include embedding if provided and non-empty
             if embedding and len(embedding) > 0:
                 data["embedding"] = embedding
 
@@ -58,22 +39,12 @@ class SupabaseClient:
             return response.data[0] if response.data else None
 
         except Exception as e:
-            print(f"❌ Error saving insight: {e}")
+            print(f" Error saving insight: {e}")
             return None
 
     def get_recent_insights(
         self, limit: int = 10, source: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Retrieve recent insights, optionally filtered by source.
-
-        Args:
-            limit: Max number of records to return
-            source: Filter by specific source (optional)
-
-        Returns:
-            List of insight dictionaries ordered by newest first
-        """
         try:
             query = (
                 self.supabase.table("insights")
@@ -93,15 +64,6 @@ class SupabaseClient:
             return []
 
     def get_sentiment_trends(self, days: int = 7) -> Dict[str, int]:
-        """
-        Get sentiment distribution over the last N days.
-
-        Args:
-            days: Number of days to look back
-
-        Returns:
-            Dictionary with counts per sentiment category
-        """
         try:
             threshold = (datetime.now() - timedelta(days=days)).isoformat()
 
@@ -126,12 +88,6 @@ class SupabaseClient:
             return {"Positive": 0, "Negative": 0, "Neutral": 0, "Unknown": 0}
 
     def get_insight_count_by_source(self) -> Dict[str, int]:
-        """
-        Get total insight count grouped by source for dashboard stats.
-
-        Returns:
-            Dictionary mapping source names to record counts
-        """
         try:
             response = (
                 self.supabase.table("insights")
@@ -139,7 +95,6 @@ class SupabaseClient:
                 .execute()
             )
 
-            # Group manually since Supabase doesn't have GROUP BY in Python client
             sources: Dict[str, int] = {}
             for item in response.data:
                 src = item.get("source", "unknown")
