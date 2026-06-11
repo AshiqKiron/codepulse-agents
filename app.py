@@ -1,12 +1,17 @@
 import streamlit as st
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# ✅ SAFE ENV LOADING: Works locally AND on Streamlit Cloud
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Streamlit Cloud injects secrets directly; dotenv not needed
+    pass
 
 st.set_page_config(
     page_title="CodePulse: VS Code Intelligence",
-    page_icon="",
+    page_icon="🟦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -53,7 +58,7 @@ with st.sidebar:
         st.rerun()
 
 # --- MAIN TABS ---
-tab_live, tab_history = st.tabs(["🚀 Live Analysis", " Historical Trends"])
+tab_live, tab_history = st.tabs(["🚀 Live Analysis", "📈 Historical Trends"])
 
 # === TAB 1: LIVE ANALYSIS WITH PROGRESSIVE DISCLOSURE ===
 with tab_live:
@@ -81,7 +86,7 @@ with tab_live:
                 ) if social_items else "No social data found."
                 
                 # Step 4: Roadmap
-                status.write(" Generating strategic roadmap...")
+                status.write("🗺️ Generating strategic roadmap...")
                 roadmap = agents["pm"].create_roadmap(gh_summary, social_summary)
                 
                 status.update(label="Analysis complete!", state="complete")
@@ -104,7 +109,7 @@ with tab_live:
                     st.info(f"**Sentiment:**\n{social_summary}")
                 
                 st.divider()
-                st.subheader(" Strategic Roadmap")
+                st.subheader("🎯 Strategic Roadmap")
                 st.markdown(roadmap)
                 
                 # Non-blocking DB save
@@ -122,4 +127,38 @@ with tab_live:
                 status.update(label=f"Failed: {str(e)[:80]}", state="error")
                 st.error(str(e))
 
-# === TAB 2: HISTORICAL TRENDS (Instant Load
+# === TAB 2: HISTORICAL TRENDS (Instant Load) ===
+with tab_history:
+    if os.getenv("SUPABASE_URL"):
+        try:
+            from db.supabase_client import SupabaseClient
+            db = SupabaseClient()
+            
+            latest_gh = db.get_recent_insights(limit=1, source="github_weekly")
+            latest_social = db.get_recent_insights(limit=1, source="social_weekly")
+            
+            if latest_gh and latest_social:
+                st.success(f"📅 Last update: {latest_gh[0]['created_at'][:10]}")
+                c1, c2 = st.columns(2)
+                c1.markdown(f"**GitHub:**\n{latest_gh[0]['content']}")
+                c2.markdown(f"**Social:**\n{latest_social[0]['content']}")
+            else:
+                st.info("No historical data yet. Weekly automation populates this tab.")
+                
+            # Sentiment chart
+            trends = db.get_sentiment_trends(days=30)
+            if sum(trends.values()) > 0:
+                import plotly.express as px
+                import pandas as pd
+                df = pd.DataFrame([trends]).melt(var_name="Sentiment", value_name="Count")
+                fig = px.bar(df, x="Sentiment", y="Count", color="Sentiment",
+                           title="30-Day Sentiment",
+                           color_discrete_map={"Positive":"#2ecc71","Negative":"#e74c3c","Neutral":"#95a5a6"})
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Historical data unavailable: {str(e)[:80]}")
+    else:
+        st.info("Set SUPABASE_URL in secrets to enable history tracking.")
+
+st.divider()
+st.caption("CodePulse v1.2 | Optimized for Speed | Auto-updates weekly via GitHub Actions")
