@@ -1,24 +1,26 @@
 import requests
+from datetime import datetime
 
 class GitHubAgent:
     def __init__(self):
         self.repo = "microsoft/vscode"
-        self.headers = {"Accept": "application/vnd.github.v3+json"}
         
-    def get_top_issues(self, label="bug", limit=3):
+    def get_top_issues(self, label="bug", limit=2, since=None):
         url = f"https://api.github.com/repos/{self.repo}/issues"
         params = {
             "state": "open", "labels": label,
-            "per_page": limit, "sort": "comments", "direction": "desc"
+            "per_page": limit, "sort": "created", "direction": "desc"
         }
+        if since:
+            params["since"] = since
+            
         try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
-            if response.status_code == 200:
-                return [{
-                    "title": issue['title'][:150],  # Truncate title
-                    "comments": issue['comments'],
-                    "url": issue['html_url']
-                } for issue in response.json()]
+            r = requests.get(url, headers={"Accept": "application/vnd.github.v3+json"}, 
+                           params=params, timeout=5)
+            if r.status_code == 200:
+                return [{"title": i['title'][:80], "comments": i['comments'], 
+                         "url": i['html_url'], "created": i['created_at'][:10]} 
+                        for i in r.json()]
         except Exception:
             pass
         return []
