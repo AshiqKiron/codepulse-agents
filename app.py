@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 
-# Safe env loading for local + cloud
+# Safe env loading
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -11,92 +11,101 @@ except ImportError:
 st.set_page_config(page_title="CodePulse", layout="wide")
 st.title("🟦 CodePulse: VS Code Intelligence")
 
-# --- CACHED AGENT INITIALIZATION ---
-@st.cache_resource(show_spinner=False)
-def init_agents():
-    from agents.github_agent import GitHubAgent
-    from agents.social_agent import SocialAgent
-    from agents.analyst_agent import AnalystAgent
-    from agents.pm_agent import PM_AGENT
-    
-    return {
-        "github": GitHubAgent(),
-        "social": SocialAgent(),
-        "analyst": AnalystAgent(),
-        "pm": PM_AGENT()
-    }
+# --- INSTANT HISTORICAL DATA LOAD ---
+@st.cache_data(ttl=1800)
+def load_historical_insights():
+    if not os.getenv("SUPABASE_URL"):
+        return None
+    try:
+        from db.supabase_client import SupabaseClient
+        db = SupabaseClient()
+        gh = db.get_recent_insights(limit=1, source="github_weekly")
+        social = db.get_recent_insights(limit=1, source="social_weekly")
+        trends = db.get_sentiment_trends(days=30)
+        return {"gh": gh, "social": social, "trends": trends}
+    except Exception:
+        return None
 
-agents = init_agents()
+historical = load_historical_insights()
 
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Config")
     repo_name = st.text_input("Repo", "microsoft/vscode")
-    search_term = st.text_input("Search Term", "VS Code")
+    search_term = st.text_input("Search", "VS Code")
     
-    if st.button("🔄 Clear Cache"):
+    if st.button("Clear All Cache"):
         st.cache_resource.clear()
         st.cache_data.clear()
         st.rerun()
 
-# --- MAIN ANALYSIS ---
-if st.button("🚀 Run Analysis", type="primary", use_container_width=True):
-    with st.status("Analyzing...", expanded=True) as status:
-        try:
-            agents["github"].repo = repo_name
-            
-            # LEANER FETCHING: Limit to 3 items for speed
-            status.write("🔍 Fetching top 3 GitHub issues...")
-            gh_issues = agents["github"].get_top_issues(label="bug", limit=3)
-            
-            status.write(" Scanning social discussions...")
-            hn_posts = agents["social"].get_hn_discussions(search_term)
-            reddit_posts = agents["social"].get_reddit_posts("vscode", limit=3)
-            
-            status.write("🧠 Generating insights...")
-            gh_summary = agents["analyst"].summarize_pain_points("GitHub", gh_issues)
-            social_items = hn_posts + reddit_posts
-            social_summary = agents["analyst"].summarize_pain_points(
-                "Social", social_items
-            ) if social_items else "No social data."
-            
-            status.write("️ Creating roadmap...")
-            roadmap = agents["pm"].create_roadmap(gh_summary, social_summary)
-            
-            status.update(label="Done!", state="complete")
-            
-            # DISPLAY RESULTS
-            c1, c2 = st.columns(2)
-            with c1:
-                st.subheader("🐛 Top Issues")
-                for i in gh_issues:
-                    st.markdown(f"**{i['title']}** ({i['comments']} comments)")
-                st.info(f"**Themes:**\n{gh_summary}")
-            
-            with c2:
-                st.subheader("💬 Social Buzz")
-                for p in hn_posts[:2]:
-                    st.markdown(f"**HN:** {p['title']} (🔥{p['points']})")
-                for p in reddit_posts[:2]:
-                    st.markdown(f"**Reddit:** {p['title']} (⬆️{p['score']})")
-                st.info(f"**Sentiment:**\n{social_summary}")
-            
-            st.divider()
-            st.subheader("🎯 Roadmap")
-            st.markdown(roadmap)
-            
-            # Optional DB Save
-            if os.getenv("SUPABASE_URL"):
-                try:
-                    from db.supabase_client import SupabaseClient
-                    db = SupabaseClient()
-                    db.save_insight("github_live", gh_summary, "Neutral")
-                    st.toast("✅ Saved to DB", icon="✅")
-                except Exception:
-                    pass
-                    
-        except Exception as e:
-            status.update(label=f"Error: {str(e)[:60]}", state="error")
-            st.error(str(e))
+# --- TABS FOR LAZY LOADING ---
+tab_cached, tab_live = st.tabs(["📊 Latest Insights (Instant)", "🚀 Run Live Analysis"])
 
-st.caption("CodePulse v2.0 | Lean & Fast | Python 3.12")
+# TAB 1: INSTANT CACHED VIEW
+with tab_cached:
+    if historical and historical["gh"] and historical["social"]:
+        st.success(f" Last updated: {historical['gh'][0]['created_at'][:10]}")
+        c1, c2 = st.columns(2)
+        c1.markdown(f"**GitHub Themes:**\n{historical['gh'][0]['content']}")
+        c2.markdown(f"**Social Sentiment:**\n{historical['social'][0]['content']}")
+        
+        if sum(historical["trends"].values()) > 0:
+            import plotly.express as px
+            import pandas as pd
+            df = pd.DataFrame([historical["trends"]]).melt(var_name="Sentiment", value_name="Count")
+            fig = px.bar(df, x="Sentiment", y="Count", color="Sentiment",
+                        title="30-Day Trend", height=300,
+                        color_discrete_map={"Positive":"#2ecc71","Negative":"#e74c3c","Neutral":"#95a5a6"})
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No historical data yet. Click 'Run Live Analysis' to generate first report.")
+
+# TAB 2: LIVE ANALYSIS (Lazy Init)
+with tab_live:
+    if st.button("🔍 Analyze Now", type="primary", use_container_width=True):
+        with st.status("Processing...", expanded=False) as status:
+            try:
+                # Lazy imports - only run when button clicked
+                from agents.github_agent import GitHubAgent
+                from agents.social_agent import SocialAgent
+                from agents.analyst_agent import AnalystAgent
+                from agents.pm_agent import PM_AGENT
+                
+                gh = GitHubAgent(); gh.repo = repo_name
+                soc = SocialAgent()
+                ana = AnalystAgent()
+                pm = PM_AGENT()
+                
+                status.write("Fetching top 3 issues...")
+                issues = gh.get_top_issues(label="bug", limit=3)
+                
+                status.write("Scanning Hacker News...")
+                hn = soc.get_hn_discussions(search_term)
+                
+                status.write("Generating insights...")
+                gh_sum = ana.summarize_pain_points("GitHub", issues)
+                soc_sum = ana.summarize_pain_points("Social", hn) if hn else "No data"
+                
+                roadmap = pm.create_roadmap(gh_sum, soc_sum)
+                
+                status.update(label="Complete!", state="complete")
+                
+                c1, c2 = st.columns(2)
+                c1.markdown(f"**Issues:**\n{gh_sum}")
+                c2.markdown(f"**Sentiment:**\n{soc_sum}")
+                st.divider()
+                st.markdown(roadmap)
+                
+                # Silent DB save
+                if os.getenv("SUPABASE_URL"):
+                    try:
+                        from db.supabase_client import SupabaseClient
+                        db = SupabaseClient()
+                        db.save_insight("github_live", gh_sum, "Neutral")
+                        db.save_insight("social_live", soc_sum, "Neutral")
+                    except Exception:
+                        pass
+                        
+            except Exception as e:
+                st.error(f"Error: {str(e)[:100]}")
