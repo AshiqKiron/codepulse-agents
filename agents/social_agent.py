@@ -6,9 +6,11 @@ class SocialAgent:
         try:
             r = requests.get(url, timeout=5)
             if r.status_code == 200:
-                return [{"title": h.get('title','')[:80], "points": h.get('points',0),
-                         "created": h.get('created_at_i',0)} 
-                        for h in r.json().get('hits',[])]
+                return [{
+                    "title": h.get('title','')[:80], 
+                    "points": h.get('points',0),
+                    "created": h.get('created_at_i',0)
+                } for h in r.json().get('hits',[])]
         except Exception:
             pass
         return []
