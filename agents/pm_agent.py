@@ -1,12 +1,5 @@
 import os
-
-try:
-    from langchain_huggingface import HuggingFaceEndpoint
-except ImportError:
-    try:
-        from langchain_community.llms import HuggingFaceHub as HuggingFaceEndpoint
-    except ImportError:
-        from langchain.llms import HuggingFaceHub as HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEndpoint
 
 
 class PM_AGENT:
