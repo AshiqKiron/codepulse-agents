@@ -1,22 +1,7 @@
 import streamlit as st
 import os
-
-# ✅ UNIVERSAL IMPORT: Works on Python 3.12 AND 3.14
-try:
-    from langchain_core.prompts import PromptTemplate
-except ImportError:
-    try:
-        from langchain.prompts import PromptTemplate
-    except ImportError:
-        from langchain.schema import PromptTemplate
-
-try:
-    from langchain_huggingface import HuggingFaceEndpoint
-except ImportError:
-    try:
-        from langchain_community.llms import HuggingFaceHub as HuggingFaceEndpoint
-    except ImportError:
-        from langchain.llms import HuggingFaceHub as HuggingFaceEndpoint
+from langchain_core.prompts import PromptTemplate
+from langchain_huggingface import HuggingFaceEndpoint
 
 
 class AnalystAgent:
