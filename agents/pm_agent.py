@@ -3,7 +3,10 @@ import os
 try:
     from langchain_huggingface import HuggingFaceEndpoint
 except ImportError:
-    from langchain_community.llms import HuggingFaceHub as HuggingFaceEndpoint
+    try:
+        from langchain_community.llms import HuggingFaceHub as HuggingFaceEndpoint
+    except ImportError:
+        from langchain.llms import HuggingFaceHub as HuggingFaceEndpoint
 
 
 class PM_AGENT:
