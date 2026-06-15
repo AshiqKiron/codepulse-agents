@@ -12,10 +12,11 @@ class AnalystAgent:
 
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            return "Error: Missing GROQ_API_KEY"
+            return "Error: Missing GROQ_API_KEY in secrets"
 
         client = Groq(api_key=api_key)
 
+        # Build safe context
         titles = []
         for i in items:
             t = i.get('title', 'Unknown Issue')
@@ -24,13 +25,13 @@ class AnalystAgent:
         text_content = "\n".join(titles)
         
         messages = [
-            {"role": "system", "content": "You are a product analyst. Be concise."},
+            {"role": "system", "content": "You are a product analyst. Be concise and actionable."},
             {"role": "user", "content": f"Extract 2 key pain points from these {source} items:\n{text_content}"}
         ]
 
         try:
             response = client.chat.completions.create(
-                model="llama3-8b-8192",  # Free tier model
+                model="llama3-8b-8192",  # Free tier, sub-second latency
                 messages=messages,
                 temperature=0.1,
                 max_tokens=150,
