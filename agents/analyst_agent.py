@@ -1,7 +1,6 @@
 import streamlit as st
 import os
-from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFaceEndpoint
+from huggingface_hub import InferenceClient
 
 
 class AnalystAgent:
@@ -9,11 +8,9 @@ class AnalystAgent:
         token = os.getenv("HF_TOKEN")
         if not token: 
             raise ValueError("Missing HF_TOKEN secret")
-        self.llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-            huggingfacehub_api_token=token,
-            temperature=0.1, 
-            max_new_tokens=150
+        self.client = InferenceClient(
+            model="mistralai/Mistral-7B-Instruct-v0.2",
+            token=token
         )
 
     @st.cache_data(ttl=3600, show_spinner=False)
@@ -21,8 +18,17 @@ class AnalystAgent:
         if not items: 
             return "No recent data."
         text = "\n".join([f"- {i['title']}" for i in items])
-        prompt = PromptTemplate.from_template(
-            "Extract 2 key pain points from these {s} items. Be concise.\n{text}\nPoints:"
+        
+        # ✅ REPLACED PromptTemplate with f-string
+        prompt = (
+            f"Extract 2 key pain points from these {source} items. Be concise.\n"
+            f"{text}\nPoints:"
         )
-        resp = (prompt | self.llm).invoke({"s": source, "text": text})
-        return resp.content if hasattr(resp, 'content') else str(resp)
+        
+        response = self.client.text_generation(
+            prompt,
+            max_new_tokens=150,
+            temperature=0.1,
+            return_full_text=False
+        )
+        return response.strip()
