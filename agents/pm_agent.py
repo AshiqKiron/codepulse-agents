@@ -10,7 +10,7 @@ class PM_AGENT:
         self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
         self.headers = {"Authorization": f"Bearer {self.token}"}
 
-    def create_roadmap(self, gh_themes, soc_themes):
+    def create_roadmap(self, gh_themes: str, soc_themes: str) -> str:
         prompt = (
             f"[INST] VP Product VS Code. Propose 1 strategic initiative:\n"
             f"GitHub Pain Points: {gh_themes}\n"
