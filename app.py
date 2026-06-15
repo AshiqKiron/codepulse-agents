@@ -13,10 +13,9 @@ if "preview_data" not in st.session_state:
 if "full_results" not in st.session_state:
     st.session_state.full_results = None
 
-# --- SIDEBAR (Minimal) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("️ Config")
-    
     repo = st.text_input("Repo", "microsoft/vscode", key="repo")
     window = st.selectbox("Window", ["1H", "24H"], index=1, key="window")
     
@@ -26,7 +25,7 @@ with st.sidebar:
         st.session_state.full_results = None
         st.rerun()
 
-# --- MAIN CONTENT ---
+# --- HERO SECTION ---
 st.markdown("""
 <div style='padding:3rem 1rem;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
 border-radius:16px;text-align:center;color:white;margin-bottom:2rem;
@@ -43,7 +42,7 @@ Progressive Loading • Zero Cold-Start Overhead
 </div>
 """, unsafe_allow_html=True)
 
-# STAGE-BASED RENDERING
+# --- STAGE LOGIC ---
 if st.session_state.stage == "zero":
     st.markdown("<div style='text-align:center;margin:2rem 0;'>", unsafe_allow_html=True)
     if st.button("🔍 Start Analysis", type="primary", use_container_width=True):
@@ -66,7 +65,6 @@ elif st.session_state.stage == "preview":
             gh.repo = st.session_state.get("repo", "microsoft/vscode")
             issues = gh.get_top_issues(label="bug", limit=2, since=since)
             
-            # ✅ FIX: Store data in session state immediately
             st.session_state.preview_data = {
                 "issues": issues,
                 "count": len(issues),
@@ -80,90 +78,9 @@ elif st.session_state.stage == "preview":
             st.rerun()
 
 elif st.session_state.stage == "preview_ready":
-    # ✅ FIX: Safely retrieve 'd' from session state
     d = st.session_state.preview_data
     
     if not d:
         st.error("Data lost. Please reset and try again.")
         st.session_state.stage = "zero"
-        st.rerun()
-    else:
-        st.success(f"✅ Found {d['count']} recent issues ({d['timestamp']})")
-        
-        c1, c2 = st.columns([3, 1])
-        with c1:
-            for i in d["issues"]:
-                st.markdown(f"**{i['title']}** ({i['comments']} comments)")
-        with c2:
-            st.metric("Issues", d["count"])
-        
-        if st.button(" Generate AI Insights", type="primary", use_container_width=True):
-            st.session_state.stage = "loading_full"
-            st.rerun()
-
-elif st.session_state.stage == "loading_full":
-    # ✅ FIX: Retrieve 'd' here too, as rerun resets local vars
-    d = st.session_state.preview_data
-    
-    with st.status("Loading AI models & generating insights...", expanded=True) as status:
-        try:
-            from agents.social_agent import SocialAgent
-            from agents.analyst_agent import AnalystAgent
-            from agents.pm_agent import PM_AGENT
-            
-            status.write("Initializing LLM...")
-            soc = SocialAgent()
-            ana = AnalystAgent()
-            pm = PM_AGENT()
-            
-            hn = soc.get_hn_discussions(
-                st.session_state.get("repo", "vscode").split("/")[1], 
-                limit=2
-            )
-            
-            status.write("Analyzing pain points...")
-            gh_sum = ana.summarize_pain_points("GitHub", d["issues"])
-            hn_sum = ana.summarize_pain_points("Social", hn) if hn else "No recent discussions"
-            
-            status.write("Generating roadmap...")
-            roadmap = pm.create_roadmap(gh_sum, hn_sum)
-            
-            st.session_state.full_results = {
-                "gh": gh_sum, "hn": hn_sum, 
-                "roadmap": roadmap,
-                "hn_count": len(hn)
-            }
-            st.session_state.stage = "full"
-            
-            # Silent background save
-            if os.getenv("SUPABASE_URL"):
-                try:
-                    from db.supabase_client import SupabaseClient
-                    db = SupabaseClient()
-                    db.save_insight("github_24h", gh_sum, "Neutral")
-                    db.save_insight("social_24h", hn_sum, "Neutral")
-                except Exception:
-                    pass
-                    
-            st.rerun()
-        except Exception as e:
-            st.error(f"AI analysis failed: {str(e)[:100]}")
-            st.session_state.stage = "preview_ready"
-            st.rerun()
-
-elif st.session_state.stage == "full":
-    r = st.session_state.full_results
-    d = st.session_state.preview_data
-    
-    c1, c2 = st.columns(2)
-    c1.markdown(f"**🐛 GitHub ({d['count']} issues):**\n{r['gh']}")
-    c2.markdown(f"**💬 Social ({r['hn_count']} posts):**\n{r['hn']}")
-    st.divider()
-    st.markdown(f"**🎯 Roadmap:**\n{r['roadmap']}")
-    st.caption(f"Updated: {d['timestamp']}")
-    
-    if st.button("🔄 New Analysis", use_container_width=True):
-        st.session_state.stage = "zero"
-        st.session_state.preview_data = None
-        st.session_state.full_results = None
-        st.rerun()
+        st.r
