@@ -1,4 +1,6 @@
 import streamlit as st
+import os
+from datetime import datetime, timedelta
 
 # ✅ ZERO MEMORY STATE
 st.set_page_config(page_title="CodePulse", layout="wide")
@@ -13,9 +15,7 @@ if "full_results" not in st.session_state:
 
 # --- SIDEBAR (Minimal) ---
 with st.sidebar:
-    st.header("⚙️ Config")
-    if st.session_state.stage == "zero":
-        st.caption("Configure settings below")
+    st.header("️ Config")
     
     repo = st.text_input("Repo", "microsoft/vscode", key="repo")
     window = st.selectbox("Window", ["1H", "24H"], index=1, key="window")
@@ -27,7 +27,6 @@ with st.sidebar:
         st.rerun()
 
 # --- MAIN CONTENT ---
-# Force button visibility by placing it INSIDE the hero container
 st.markdown("""
 <div style='padding:3rem 1rem;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
 border-radius:16px;text-align:center;color:white;margin-bottom:2rem;
@@ -46,21 +45,17 @@ Progressive Loading • Zero Cold-Start Overhead
 
 # STAGE-BASED RENDERING
 if st.session_state.stage == "zero":
-    # Button is NOW inside a visible container with clear spacing
     st.markdown("<div style='text-align:center;margin:2rem 0;'>", unsafe_allow_html=True)
     if st.button("🔍 Start Analysis", type="primary", use_container_width=True):
         st.session_state.stage = "preview"
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Add spacer to prevent content from hiding behind footer
     st.markdown("<br><br><br>", unsafe_allow_html=True)
 
 elif st.session_state.stage == "preview":
     with st.spinner("Loading data sources..."):
         try:
             from agents.github_agent import GitHubAgent
-            from datetime import datetime, timedelta
             
             now = datetime.utcnow()
             since = (now - timedelta(hours=1)).isoformat() + "Z" \
@@ -71,6 +66,7 @@ elif st.session_state.stage == "preview":
             gh.repo = st.session_state.get("repo", "microsoft/vscode")
             issues = gh.get_top_issues(label="bug", limit=2, since=since)
             
+            # ✅ FIX: Store data in session state immediately
             st.session_state.preview_data = {
                 "issues": issues,
                 "count": len(issues),
@@ -84,24 +80,33 @@ elif st.session_state.stage == "preview":
             st.rerun()
 
 elif st.session_state.stage == "preview_ready":
+    # ✅ FIX: Safely retrieve 'd' from session state
     d = st.session_state.preview_data
-    st.success(f"✅ Found {d['count']} recent issues ({d['timestamp']})")
     
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        for i in d["issues"]:
-            st.markdown(f"**{i['title']}** ({i['comments']} comments)")
-    with c2:
-        st.metric("Issues", d["count"])
-    
-    if st.button("🧠 Generate AI Insights", type="primary", use_container_width=True):
-        st.session_state.stage = "loading_full"
+    if not d:
+        st.error("Data lost. Please reset and try again.")
+        st.session_state.stage = "zero"
         st.rerun()
+    else:
+        st.success(f"✅ Found {d['count']} recent issues ({d['timestamp']})")
+        
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            for i in d["issues"]:
+                st.markdown(f"**{i['title']}** ({i['comments']} comments)")
+        with c2:
+            st.metric("Issues", d["count"])
+        
+        if st.button(" Generate AI Insights", type="primary", use_container_width=True):
+            st.session_state.stage = "loading_full"
+            st.rerun()
 
 elif st.session_state.stage == "loading_full":
+    # ✅ FIX: Retrieve 'd' here too, as rerun resets local vars
+    d = st.session_state.preview_data
+    
     with st.status("Loading AI models & generating insights...", expanded=True) as status:
         try:
-            import os
             from agents.social_agent import SocialAgent
             from agents.analyst_agent import AnalystAgent
             from agents.pm_agent import PM_AGENT
@@ -130,6 +135,7 @@ elif st.session_state.stage == "loading_full":
             }
             st.session_state.stage = "full"
             
+            # Silent background save
             if os.getenv("SUPABASE_URL"):
                 try:
                     from db.supabase_client import SupabaseClient
