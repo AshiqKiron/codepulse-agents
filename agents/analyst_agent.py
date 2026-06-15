@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from groq import Groq
+import requests
 
 
 class AnalystAgent:
@@ -14,9 +14,6 @@ class AnalystAgent:
         if not api_key:
             return "Error: Missing GROQ_API_KEY in secrets"
 
-        client = Groq(api_key=api_key)
-
-        # Build safe context
         titles = []
         for i in items:
             t = i.get('title', 'Unknown Issue')
@@ -24,19 +21,26 @@ class AnalystAgent:
         
         text_content = "\n".join(titles)
         
-        messages = [
-            {"role": "system", "content": "You are a product analyst. Be concise and actionable."},
-            {"role": "user", "content": f"Extract 2 key pain points from these {source} items:\n{text_content}"}
-        ]
+        # Direct API call - no SDK needed
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama3-8b-8192",
+            "messages": [
+                {"role": "system", "content": "You are a product analyst. Be concise."},
+                {"role": "user", "content": f"Extract 2 key pain points from these {source} items:\n{text_content}"}
+            ],
+            "temperature": 0.1,
+            "max_tokens": 150
+        }
 
         try:
-            response = client.chat.completions.create(
-                model="llama3-8b-8192",  # Free tier, sub-second latency
-                messages=messages,
-                temperature=0.1,
-                max_tokens=150,
-                timeout=30
-            )
-            return response.choices[0].message.content.strip()
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
         except Exception as e:
             return f"Analysis failed: {str(e)[:80]}"
