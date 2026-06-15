@@ -1,5 +1,5 @@
 import os
-from langchain_huggingface import HuggingFaceEndpoint
+from huggingface_hub import InferenceClient
 
 
 class PM_AGENT:
@@ -7,17 +7,23 @@ class PM_AGENT:
         token = os.getenv("HF_TOKEN")
         if not token: 
             raise ValueError("Missing HF_TOKEN secret")
-        self.llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-            huggingfacehub_api_token=token,
-            temperature=0.2, 
-            max_new_tokens=200
+        self.client = InferenceClient(
+            model="mistralai/Mistral-7B-Instruct-v0.2",
+            token=token
         )
 
     def create_roadmap(self, gh_themes, soc_themes):
-        prompt = f"""VP Product VS Code. 1 initiative only:
-GitHub: {gh_themes}
-Social: {soc_themes}
-Format: [Name] - [Problem] - [Metric]"""
-        resp = self.llm.invoke(prompt)
-        return resp.content if hasattr(resp, 'content') else str(resp)
+        prompt = (
+            f"VP Product VS Code. Propose 1 strategic initiative:\n"
+            f"GitHub Pain Points: {gh_themes}\n"
+            f"Social Sentiment: {soc_themes}\n"
+            f"Format: [Name] - [Problem] - [Metric]"
+        )
+        
+        response = self.client.text_generation(
+            prompt,
+            max_new_tokens=200,
+            temperature=0.2,
+            return_full_text=False
+        )
+        return response.strip()
