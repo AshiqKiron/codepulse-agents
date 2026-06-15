@@ -11,10 +11,17 @@ class AnalystAgent:
         self.api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
         self.headers = {"Authorization": f"Bearer {self.token}"}
 
+    # ✅ FIX: Removed 'self' from arguments. Only hashable types allowed.
+    @staticmethod
     @st.cache_data(ttl=3600, show_spinner=False)
-    def summarize_pain_points(self, source, items):
+    def summarize_pain_points(source: str, items: list) -> str:
         if not items:
             return "No recent data."
+
+        # Re-initialize client inside static method
+        token = os.getenv("HF_TOKEN")
+        api_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+        headers = {"Authorization": f"Bearer {token}"}
 
         text = "\n".join([f"- {i['title']}" for i in items])
         prompt = (
@@ -24,29 +31,6 @@ class AnalystAgent:
 
         try:
             response = requests.post(
-                self.api_url,
-                headers=self.headers,
+                api_url,
+                headers=headers,
                 json={
-                    "inputs": prompt,
-                    "parameters": {
-                        "max_new_tokens": 150,
-                        "temperature": 0.1,
-                        "return_full_text": False
-                    }
-                },
-                timeout=30
-            )
-            response.raise_for_status()
-            result = response.json()
-
-            # Handle both list and dict responses
-            if isinstance(result, list) and len(result) > 0:
-                return result[0].get("generated_text", "").strip()
-            elif isinstance(result, dict):
-                return result.get("generated_text", "").strip()
-            return "Analysis failed: Unexpected API response format"
-
-        except requests.exceptions.Timeout:
-            return "Analysis timed out. Please try again."
-        except Exception as e:
-            return f"Analysis failed: {str(e)[:80]}"
