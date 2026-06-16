@@ -6,7 +6,7 @@ class PM_AGENT:
     def create_roadmap(self, gh_themes: str, soc_themes: str) -> str:
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            return "Error: Missing GROQ_API_KEY in secrets"
+            return "Error: GROQ_API_KEY missing in Streamlit Secrets"
             
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
@@ -16,7 +16,7 @@ class PM_AGENT:
         payload = {
             "model": "llama3-8b-8192",
             "messages": [
-                {"role": "system", "content": "You are VP of Product for VS Code."},
+                {"role": "system", "content": "VP of Product. Propose 1 initiative."},
                 {"role": "user", "content": f"GitHub: {gh_themes}\nSocial: {soc_themes}\nFormat: [Name] - [Problem] - [Metric]"}
             ],
             "temperature": 0.2,
@@ -24,9 +24,14 @@ class PM_AGENT:
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            if resp.status_code == 401:
+                return "Error: Invalid Groq API Key"
+            if resp.status_code == 400:
+                err = resp.json().get("error", {}).get("message", "Bad Request")
+                return f"Groq Error: {err}"
+                
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
         except Exception as e:
-            return f"Roadmap failed: {str(e)[:80]}"
+            return f"Request failed: {str(e)[:80]}"
