@@ -6,6 +6,10 @@ CodePulse is a multi-agent intelligence platform that analyzes real-time user pa
 
 **Live Demo:** [https://codepulse-agents-rdjjezjqk4fhbh54arxha8.streamlit.app](https://codepulse-agents-rdjjezjqk4fhbh54arxha8.streamlit.app)
 
+### zero-state ![](zero-state.png)
+### issue scan ![](issue-scan.png)
+### roadmap ![](roadmap.png)
+
 ---
 
 ## System Architecture
