@@ -23,7 +23,7 @@ class AnalystAgent:
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama3-8b-8192",
+            "model": "llama-3.1-8b-instant",  # ✅ CURRENT VALID MODEL
             "messages": [
                 {"role": "system", "content": "Extract 2 concise pain points."},
                 {"role": "user", "content": f"{source} items:\n{text_content}"}
