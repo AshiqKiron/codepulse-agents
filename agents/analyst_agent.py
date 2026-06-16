@@ -12,13 +12,9 @@ class AnalystAgent:
 
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            return "Error: Missing GROQ_API_KEY in secrets"
+            return "Error: GROQ_API_KEY missing in Streamlit Secrets"
 
-        titles = []
-        for i in items:
-            t = i.get('title', 'Unknown Issue')
-            titles.append(f"- {t}")
-        
+        titles = [f"- {i.get('title', 'Unknown')}" for i in items]
         text_content = "\n".join(titles)
         
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -29,17 +25,22 @@ class AnalystAgent:
         payload = {
             "model": "llama3-8b-8192",
             "messages": [
-                {"role": "system", "content": "You are a product analyst. Be concise."},
-                {"role": "user", "content": f"Extract 2 key pain points from these {source} items:\n{text_content}"}
+                {"role": "system", "content": "Extract 2 concise pain points."},
+                {"role": "user", "content": f"{source} items:\n{text_content}"}
             ],
             "temperature": 0.1,
             "max_tokens": 150
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            if resp.status_code == 401:
+                return "Error: Invalid Groq API Key"
+            if resp.status_code == 400:
+                err = resp.json().get("error", {}).get("message", "Bad Request")
+                return f"Groq Error: {err}"
+                
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
         except Exception as e:
-            return f"Analysis failed: {str(e)[:80]}"
+            return f"Request failed: {str(e)[:80]}"
