@@ -14,7 +14,7 @@ class PM_AGENT:
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama3-8b-8192",
+            "model": "llama-3.1-8b-instant",  # ✅ CURRENT VALID MODEL
             "messages": [
                 {"role": "system", "content": "VP of Product. Propose 1 initiative."},
                 {"role": "user", "content": f"GitHub: {gh_themes}\nSocial: {soc_themes}\nFormat: [Name] - [Problem] - [Metric]"}
