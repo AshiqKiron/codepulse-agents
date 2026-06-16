@@ -253,9 +253,5 @@ MIT License — see LICENSE for details.
 For questions, feedback, or collaboration opportunities:
 
 -   **GitHub Issues:** [Report bugs or request features](https://github.com/ashiqkiron/codepulse-agents/issues)
--   **Email:** [Your Email Here]
--   **LinkedIn:** [Your LinkedIn Profile]
 
 ---
-
-*Built with ❤️ for the developer tools community. Last updated: June 2025.*
